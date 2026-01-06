@@ -1,28 +1,61 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async createUser(data: CreateUserDto) {
-    if (!data) {
-      throw new BadRequestException('Request body missing');
+  async createUser(dto: CreateUserDto) {
+    const { email, password, name } = dto;
+
+    // 1️⃣ Check for duplicate email
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
     }
 
-    const { email, password, name } = data;
+    // 2️⃣ Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!email || !password || !name) {
-      throw new BadRequestException('Missing required fields');
-    }
+    // 3️⃣ Transaction: user + org + membership
+    return this.prisma.$transaction(async (tx) => {
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          name,
+          password: hashedPassword,
+        },
+      });
 
-    return this.prisma.user.create({
-      data: {
-        email,
-        password,
-        name,
-      },
+      // Create default organization
+      const organization = await tx.organization.create({
+        data: {
+          name: `${name}'s Organization`,
+        },
+      });
+
+      // Create membership (OWNER)
+      await tx.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: organization.id,
+          role: 'OWNER',
+        },
+      });
+
+      // Remove password from response
+      const { password: _, ...safeUser } = user;
+
+      return {
+        ...safeUser,
+        organizationId: organization.id,
+      };
     });
   }
 }
