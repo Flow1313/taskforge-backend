@@ -1,14 +1,15 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AuthGuard('jwt'))
   @Get('profile')
-  getProfile(@Request() req) {
-    return req.user; // comes from JWT strategy validate() method
+  async profile(@Req() req: any) {
+    // req.user.email comes from JwtStrategy.validate
+    return this.usersService.findProfileByEmail(req.user.email);
   }
 }
