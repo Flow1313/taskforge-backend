@@ -1,61 +1,50 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async createUser(dto: CreateUserDto) {
-    const { email, password, name } = dto;
+  async create(data: {
+    email: string;
+    password: string;
+    name: string;
+    organizationId: string;
+  }) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // 1️⃣ Check for duplicate email
-    const existingUser = await this.prisma.user.findUnique({
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        name: data.name,
+        memberships: {
+          create: {
+            organizationId: data.organizationId,
+          },
+        },
+      },
+    });
+  }
+
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
       where: { email },
     });
+  }
 
-    if (existingUser) {
-      throw new ConflictException('Email already in use');
+  async findById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    // 2️⃣ Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 3️⃣ Transaction: user + org + membership
-    return this.prisma.$transaction(async (tx) => {
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          email,
-          name,
-          password: hashedPassword,
-        },
-      });
-
-      // Create default organization
-      const organization = await tx.organization.create({
-        data: {
-          name: `${name}'s Organization`,
-        },
-      });
-
-      // Create membership (OWNER)
-      await tx.membership.create({
-        data: {
-          userId: user.id,
-          organizationId: organization.id,
-          role: 'OWNER',
-        },
-      });
-
-      // Remove password from response
-      const { password: _, ...safeUser } = user;
-
-      return {
-        ...safeUser,
-        organizationId: organization.id,
-      };
-    });
+    return user;
   }
 }
