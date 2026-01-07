@@ -1,17 +1,14 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  async create(@Body() body: {
-    email: string;
-    password: string;
-    name: string;
-    organizationId: string;
-  }) {
-    return this.usersService.create(body);
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return req.user; // comes from JWT strategy validate() method
   }
 }
