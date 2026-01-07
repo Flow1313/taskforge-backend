@@ -30,10 +30,11 @@ export class UsersService {
     });
   }
 
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+  async findByEmail(email: string, includeOptions?: any) {
+  return this.prisma.user.findUnique({
+    where: { email },
+    ...includeOptions, // spread optional include if provided
+  });
   }
 
   async findById(id: string) {
