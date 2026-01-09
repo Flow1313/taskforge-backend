@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -10,64 +10,37 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  /**
-   * Validate user credentials
-   * @param email User email
-   * @param password User password (plain text)
-   * @returns User object if valid, null otherwise
-   */
-  async validateUser(email: string, password: string) {
-    // Include memberships to get organization
-    const user = await this.usersService.findByEmail(email, {
-      include: {
-        memberships: {
-          include: { organization: true },
-        },
-      },
-    });
+  async login(email: string, password: string) {
+  const user = await this.usersService.findByEmail(email, {
+    include: {
+      memberships: { include: { organization: true } },
+    },
+  });
 
-    if (!user) {
-      return null;
-    }
+  if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const passwordMatches = await bcrypt.compare(password, user.password);
-    if (!passwordMatches) {
-      return null;
-    }
+  const passwordValid = await bcrypt.compare(password, user.password);
+  if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
 
-    return user;
-  }
+  const organizationId =
+    user.memberships && user.memberships.length > 0
+      ? user.memberships[0].organization.id
+      : null;
 
-  /**
-   * Generate JWT and return user info
-   * @param user User object
-   */
-  async login(user: any) {
-    // Get organizationId from memberships (first membership)
-    const organizationId = user.memberships?.[0]?.organization?.id || null;
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    organizationId,
+  };
 
-    const payload = { sub: user.id, email: user.email };
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        organizationId,
-      },
-    };
-  }
-
-  /**
-   * Main login function
-   * @param email User email
-   * @param password User password
-   */
-  async loginWithCredentials(email: string, password: string) {
-    const user = await this.validateUser(email, password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    return this.login(user);
+  return {
+    access_token: this.jwtService.sign(payload),
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      organizationId,
+    },
+  };
   }
 }

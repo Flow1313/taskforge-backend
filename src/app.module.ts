@@ -5,6 +5,6 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, UsersModule, OrganizationsModule, AuthModule],
+  imports: [AuthModule, DatabaseModule, UsersModule, OrganizationsModule],
 })
 export class AppModule {}
