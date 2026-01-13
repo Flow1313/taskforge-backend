@@ -28,16 +28,40 @@ enum OrganizationRole {
   MEMBER
 }
 
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model Membership {
-  id             String           @id @default(uuid())
+  id             String   @id @default(uuid())
   userId         String
   organizationId String
-  role           OrganizationRole @default(MEMBER)
+  role           Role     @default(MEMBER)
+  createdAt      DateTime @default(now())
 
-  user         User         @relation(fields: [userId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  createdAt DateTime @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([userId, organizationId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Task {
+  id             String      @id @default(uuid())
+  title          String
+  description    String?
+  status         TaskStatus  @default(TODO)
+  organizationId String
+  createdById    String
+  assignedToId   String?
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
 }
