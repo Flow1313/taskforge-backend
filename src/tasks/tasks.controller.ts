@@ -16,32 +16,31 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
+@Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  create(@Req() req, @Body() dto: CreateTaskDto) {
-    return this.tasksService.createTask(
-      req.user.organizationId,
-      req.user.userId,
+  create(@Body() dto: CreateTaskDto, @Req() req: any) {
+    return this.tasksService.create(
       dto,
+      req.user.userId,
+      req.user.organizationId,
     );
   }
 
   @Get()
-  findAll(@Req() req) {
-    return this.tasksService.getTasksByOrganization(
-      req.user.organizationId,
-    );
+  findAll(@Req() req: any) {
+    return this.tasksService.findAll(req.user.organizationId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    return this.tasksService.updateTask(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() req: any) {
+    return this.tasksService.update(id, dto, req.user.organizationId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tasksService.deleteTask(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.tasksService.remove(id, req.user.organizationId);
   }
 }
