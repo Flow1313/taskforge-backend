@@ -3,65 +3,68 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // or your database provider
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
-  password    String
-  name        String
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Self-relation for who created the user
+  createdById  String?
+  createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("UserCreatedBy")
+
+  // Memberships in organizations
   memberships Membership[]
-  createdAt   DateTime     @default(now())
+
+  // Tasks created by the user
+  tasks Task[] @relation("UserTasks")
 }
 
 model Organization {
-  id          String       @id @default(uuid())
-  name        String
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Users in the organization through memberships
   memberships Membership[]
-  createdAt   DateTime     @default(now())
-}
 
-enum OrganizationRole {
-  OWNER
-  MEMBER
-}
-
-enum Role {
-  OWNER
-  ADMIN
-  MEMBER
+  // Tasks belonging to the organization
+  tasks Task[] @relation("OrganizationTasks")
 }
 
 model Membership {
-  id             String   @id @default(uuid())
+  id             String @id @default(uuid())
   userId         String
   organizationId String
-  role           Role     @default(MEMBER)
-  createdAt      DateTime @default(now())
 
-  user           User         @relation(fields: [userId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
 
-  @@unique([userId, organizationId])
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
+  role      String // e.g., "owner", "member"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Task {
-  id             String      @id @default(uuid())
-  title          String
-  description    String?
-  status         TaskStatus  @default(TODO)
-  organizationId String
-  createdById    String
-  assignedToId   String?
-  createdAt      DateTime    @default(now())
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("pending") // optional enum if you prefer
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  // Task relations
+  organizationId String
+  organization   Organization @relation("OrganizationTasks", fields: [organizationId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("UserTasks", fields: [createdById], references: [id])
 }

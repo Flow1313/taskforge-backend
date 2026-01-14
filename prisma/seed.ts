@@ -1,26 +1,34 @@
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('securepass123', 10);
+  const hashedPassword = await bcrypt.hash('securepass123', 10)
 
-  await prisma.user.create({
+  const org = await prisma.organization.create({
+    data: { name: 'TaskForge' },
+  })
+
+  const user = await prisma.user.create({
     data: {
       email: 'owner2@taskforge.com',
-      name: 'Owner Two',
+      name: 'Owner 2',
       password: hashedPassword,
     },
-  });
+  })
+
+  await prisma.membership.create({
+    data: {
+      userId: user.id,
+      organizationId: org.id,
+      role: 'owner',
+    },
+  })
+
+  console.log('Seed complete')
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+  .catch((e) => console.error(e))
+  .finally(async () => await prisma.$disconnect())
