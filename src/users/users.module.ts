@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
-import { PrismaService } from '../database/prisma/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 @Module({
-  controllers: [UsersController],
-  providers: [UsersService, PrismaService],
-  exports: [UsersService], // 🔥 REQUIRED
+  providers: [UsersService, PrismaService], // PrismaService needed if UsersService depends on it
+  exports: [UsersService],                 // Only export things that are in providers
 })
 export class UsersModule {}
