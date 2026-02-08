@@ -1,46 +1,43 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
-import * as bcrypt from 'bcrypt';
+import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { PrismaService } from '../prisma/prisma.service'
+import * as bcrypt from 'bcrypt'
+import { JwtService } from '@nestjs/jwt'
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
+    private prisma: PrismaService,
+    private jwt: JwtService,
   ) {}
 
   async login(email: string, password: string) {
-  const user = await this.usersService.findByEmail(email, {
-    include: {
-      memberships: { include: { organization: true } },
-    },
-  });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    })
 
-  if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials')
+    }
 
-  const passwordValid = await bcrypt.compare(password, user.password);
-  if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+    const passwordMatch = await bcrypt.compare(password, user.password)
 
-  const organizationId =
-    user.memberships && user.memberships.length > 0
-      ? user.memberships[0].organization.id
-      : null;
+    if (!passwordMatch) {
+      throw new UnauthorizedException('Invalid credentials')
+    }
 
-  const payload = {
-    sub: user.id,
-    email: user.email,
-    organizationId,
-  };
-
-  return {
-    access_token: this.jwtService.sign(payload),
-    user: {
-      id: user.id,
+    const payload = {
+      sub: user.id,
       email: user.email,
-      name: user.name,
-      organizationId,
-    },
-  };
+      role: user.role,
+    }
+
+    return {
+      access_token: await this.jwt.signAsync(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    }
   }
 }

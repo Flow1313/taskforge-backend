@@ -7,24 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  OWNER
+  ADMIN
+  USER
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  name      String
+  name      String?
+  role      Role     @default(USER)   // <-- Make sure this line exists
+
+  memberships Membership[]
+  tasks       Task[] @relation("UserTasks")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Self-relation for who created the user
-  createdById  String?
-  createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id])
-  createdUsers User[]  @relation("UserCreatedBy")
-
-  // Memberships in organizations
-  memberships Membership[]
-
-  // Tasks created by the user
-  tasks Task[] @relation("UserTasks")
 }
 
 model Organization {
@@ -44,13 +44,12 @@ model Membership {
   id             String @id @default(uuid())
   userId         String
   organizationId String
+  role           Role
 
   user         User         @relation(fields: [userId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
 
-  role      String // e.g., "owner", "member"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@unique([userId, organizationId])
 }
 
 model Task {
